@@ -1,24 +1,20 @@
 import numpy as np
 
+
 class ObstacleTrajectoryPredictor:
-    """
-    Predicts future positions of dynamic obstacles or moving agents 
-    using linear velocity extrapolation and constant acceleration models.
-    """
-    def __init__(self, prediction_horizon_steps=5):
+    """Predicts future 2D/3D positions of moving obstacles using velocity."""
+
+    def __init__(self, prediction_horizon_steps: int = 5):
+        if prediction_horizon_steps < 1:
+            raise ValueError("prediction_horizon_steps must be at least 1")
         self.horizon = prediction_horizon_steps
 
     def predict_trajectory(self, current_pos, current_velocity):
-        """
-        Extrapolates future trajectory coordinates over the given time horizon.
-        """
-        pos = np.array(current_pos, dtype=float)
-        vel = np.array(current_velocity, dtype=float)
-        
-        trajectory = []
-        for step in range(1, self.horizon + 1):
-            future_pos = pos + (vel * step)
-            trajectory.append(future_pos.tolist())
-            
-        return trajectory
-      
+        pos = np.asarray(current_pos, dtype=float)
+        vel = np.asarray(current_velocity, dtype=float)
+
+        if pos.shape != vel.shape:
+            raise ValueError("current_pos and current_velocity must have the same shape")
+
+        return [(pos + vel * step).tolist() for step in range(1, self.horizon + 1)]
+
