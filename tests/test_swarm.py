@@ -307,3 +307,16 @@ def test_poc_simulation_recording():
     assert len(history) == 5
     assert "agents" in history[0]
     
+from core.obstacle_predictor import ObstacleTrajectoryPredictor
+
+
+def test_obstacle_trajectory_prediction():
+    predictor = ObstacleTrajectoryPredictor(prediction_horizon_steps=3)
+    future_path = predictor.predict_trajectory(
+        current_pos=[0.0, 0.0],
+        current_velocity=[1.5, 2.0],
+    )
+
+    assert len(future_path) == 3
+    assert future_path[0] == [1.5, 2.0]
+    assert future_path[2] == [4.5, 6.0]
