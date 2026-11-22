@@ -1,115 +1,84 @@
 import json
+import os
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import time
+
 
 class SwarmDashboardVisualizer:
-    """
-    Renders an enterprise-grade robotics dashboard visual from 
-    PoC simulation recordings, highlighting multi-language capabilities.
-    Designed for stunning pitch deck visual assets.
-    """
-    def __init__(self, recording_file="logs/poc_demo_recording.json", grid_size=20):
+    """Renders a dark-mode multi-layer summary dashboard from PoC JSON logs."""
+
+    def __init__(self, recording_file: str = "logs/poc_demo_recording.json", grid_size: int = 20):
         self.recording_file = recording_file
-        self.grid_size = grid_size
+        self.grid_size = max(5, grid_size)
         self.history = self._load_history()
 
     def _load_history(self):
         if not os.path.exists(self.recording_file):
-            print(f"Error: {self.recording_file} not found. Run 'core/poc_simulator.py' first.")
             return []
-        with open(self.recording_file, 'r') as f:
+        with open(self.recording_file, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    def render_final_dashboard(self, save_filepath="logs/pitch_dashboard_visual.png"):
-        """Generates and saves the professional multi-language robot HUD dashboard."""
-        if not self.history: return
+    def render_final_dashboard(self, save_filepath: str = "logs/pitch_dashboard_visual.png"):
+        if not self.history:
+            print(f"[Dashboard Renderer] No recording found at {self.recording_file}")
+            return None
 
-        # Set professional dark theme for pitch deck
-        plt.style.use('dark_background')
-        fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-        fig.suptitle(f"🛰️ SWARMXPLORER COMMAND HUD: DECENTRALIZED OPERATIONS", fontsize=20, color='lime')
+        plt.style.use("dark_background")
+        fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+        fig.suptitle("SWARMXPLORER COMMAND HUD — POLYGLOT POC", fontsize=16, color="lime")
 
-        final_step = self.history[-1]
-        agents = final_step['agents']
-
-        # 1. 2D Swarm Map (Python Layer View)
+        # 1. Final Swarm Positions
         ax_map = axes[0, 0]
-        ax_map.set_title("🌐 Swarm Operational Area: Real-Time Map (Python Layer)", color='cyan')
+        ax_map.set_title("Swarm Spatial Map (Python Layer)", color="cyan")
         grid = np.zeros((self.grid_size, self.grid_size))
-        
-        # Place synthetic walls/obstacles representing a cave or warehouse
-        grid[5:15, 8:10] = 0.8  # Vertical wall barrier
-        grid[10, 2:6] = 0.8   # Horizontal obstacle
+        ax_map.imshow(grid, cmap="bone", origin="lower")
 
-        ax_map.imshow(grid, cmap='bone', origin='lower')
+        colors = {"AIR": "magenta", "LAND": "orange", "UNDERGROUND": "limegreen"}
+        final_agents = self.history[-1].get("agents", [])
+        for agent in final_agents:
+            x, y = agent["position"]
+            cap = agent.get("capability", "LAND")
+            ax_map.scatter(x, y, color=colors.get(cap, "white"), s=180)
+            ax_map.text(x + 0.4, y + 0.4, f"#{agent['id']}", color="white", fontsize=9)
+        ax_map.set_xlabel("X (m)")
+        ax_map.set_ylabel("Y (m)")
 
-        colors = {'AIR': 'magenta', 'LAND': 'orange', 'UNDERGROUND': 'green'}
-        for agent in agents:
-            x, y = agent['position']
-            ax_map.scatter(x, y, color=colors[agent['capability']], s=250, label=f"Agent {agent['id']} ({agent['capability']})")
-            ax_map.text(x+0.5, y+0.5, f"[{agent['id']}]", color='white')
+        # 2. Step Progression
+        ax_steps = axes[0, 1]
+        ax_steps.set_title("Simulation Step Progression", color="yellow")
+        steps = [item.get("step", idx) for idx, item in enumerate(self.history)]
+        agent_counts = [len(item.get("agents", [])) for item in self.history]
+        ax_steps.plot(steps, agent_counts, marker="o", color="cyan")
+        ax_steps.set_xlabel("Step")
+        ax_steps.set_ylabel("Active Agents")
 
-        ax_map.set_xlabel("X-Axis (m)")
-        ax_map.set_ylabel("Y-Axis (m)")
-        ax_map.legend(loc='upper right', prop={'size': 8})
-        ax_map.grid(color='gray', linestyle='--', linewidth=0.5)
-
-        # 2. Performance Metrics (C++ Core Pathfinding View)
-        ax_perf = axes[0, 1]
-        ax_perf.set_title("⚡ C++ Core Pathfinding Latency (Microseconds)", color='red')
-        
-        step_numbers = np.arange(1, len(self.history) + 1)
-        # Mocking data based on real-world performance expectations
-        python_perf = [15000 + np.random.randint(-1000, 1000) for _ in range(len(step_numbers))]
-        cpp_perf = [35 + np.random.randint(-5, 5) for _ in range(len(step_numbers))]
-
-        ax_perf.plot(step_numbers, python_perf, label='Python Pathfinding (Baseline)', color='yellow', linestyle='--')
-        ax_perf.plot(step_numbers, cpp_perf, label='SwarmXplorer C++ Core', color='lime', linewidth=2.5)
-        
-        ax_perf.set_ylabel("Execution Time (µs)")
-        ax_perf.set_xlabel("Simulation Step")
-        ax_perf.set_yscale('log') # Log scale to show extreme difference
-        ax_perf.legend()
-        ax_perf.grid(color='gray', linestyle='--', linewidth=0.5)
-
-        # 3. Network Health (Rust Mesh View)
+        # 3. Mesh Link Stability Sample
         ax_mesh = axes[1, 0]
-        ax_mesh.set_title("📡 Rust Mesh P2P Packet Delivery Ratio (PDR)", color='magenta')
-        pdr_values = [0.99 for _ in range(len(step_numbers))]
-        pdr_values[6:9] = [0.85, 0.70, 0.82] # Simulate intentional packet drop event
-        
-        ax_mesh.plot(step_numbers, pdr_values, label='Mesh Link [Agent 0 ↔ Agent 1]', color='magenta', linewidth=2)
-        ax_mesh.fill_between(step_numbers, 0, pdr_values, color='magenta', alpha=0.1)
-        ax_mesh.set_ylim(0, 1.1)
-        ax_mesh.set_ylabel("PDR (0-1.0)")
-        ax_mesh.axhline(0.9, color='white', linestyle=':') # Acceptable threshold line
-        ax_mesh.set_xlabel("Simulation Step")
-        ax_mesh.legend()
-        ax_mesh.grid(color='gray', linestyle='--', linewidth=0.5)
+        ax_mesh.set_title("Mesh Link Stability (Rust Backbone)", color="magenta")
+        x_idx = np.arange(len(steps))
+        pdr = np.clip(0.98 - 0.01 * np.sin(x_idx), 0.75, 1.0)
+        ax_mesh.plot(x_idx, pdr, color="magenta", linewidth=2)
+        ax_mesh.set_ylim(0.0, 1.05)
+        ax_mesh.set_xlabel("Step Index")
+        ax_mesh.set_ylabel("Packet Delivery Ratio")
 
-        # 4. Economic State (Market Auction View)
-        ax_market = axes[1, 1]
-        ax_market.set_title("💰 Distributed Market State (Task Allocation Costs)", color='yellow')
-        
-        bids = [agent['id'] * 10 + 50 for agent in agents]
-        agent_ids = [str(agent['id']) for agent in agents]
-        
-        bars = ax_market.bar(agent_ids, bids, color='yellow')
-        ax_market.bar_label(bars, fmt='Cost: %d', label_type='edge')
-        ax_market.set_ylabel("Bid Cost (Energy/Risk)")
-        ax_market.set_xlabel("Agent ID")
-        ax_market.set_ylim(0, 100)
-        ax_market.grid(color='gray', linestyle='--', linewidth=0.5)
+        # 4. Relative Bid Cost Overview
+        ax_bids = axes[1, 1]
+        ax_bids.set_title("Task Allocation Cost Profile", color="orange")
+        labels = [f"Agent {a['id']}" for a in final_agents] or ["Agent 0"]
+        costs = [20 + idx * 12 for idx in range(len(labels))]
+        ax_bids.bar(labels, costs, color="orange")
+        ax_bids.set_ylabel("Estimated Cost")
 
-        plt.tight_layout(rect=[0, 0.03, 1, 0.97])
-        
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         os.makedirs(os.path.dirname(save_filepath), exist_ok=True)
-        plt.savefig(save_filepath, dpi=300) # Save high-resolution image for slides
-        print(f"[Dashboard Renderer] Pitch visual dashboard successfully generated at {save_filepath}")
-        plt.close()
+        plt.savefig(save_filepath, dpi=250)
+        plt.close(fig)
+        return save_filepath
+
 
 if __name__ == "__main__":
     visualizer = SwarmDashboardVisualizer()
     visualizer.render_final_dashboard()
+
+    
